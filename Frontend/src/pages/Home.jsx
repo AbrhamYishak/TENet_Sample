@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-
+import WorldMapImage from "../assets/worldmap.png"
+import { Mail, Phone, MapPin } from "lucide-react";
 export default function Home() {
   const [scrollY, setScrollY] = useState(0);
   const [selected, setselected] = useState("Home");
@@ -50,7 +51,7 @@ export default function Home() {
         <Link to="/map"><a onClick={()=>setselected("map")} className={` hover:text-red-500 ${selected == "map" ? "text-red-600" : "text-gray-700"}`}>Map</a></Link> 
           <a href="#About" onClick={()=>setselected("about")} className={` hover:text-red-500 ${selected == "about" ? "text-red-600" : "text-gray-700"}`}>About</a>
           <a href="#Contribute" onClick={()=>setselected("contribute")} className={` hover:text-red-500 ${selected == "contribute" ? "text-red-600" : "text-gray-700"}`}>Contribution</a>
-          <a onClick={()=>setselected("contact")} className={` hover:text-red-500 ${selected == "contact" ? "text-red-600" : "text-gray-700"}`}>Contact</a>
+          <a href = "#contact" onClick={()=>setselected("contact")} className={` hover:text-red-500 ${selected == "contact" ? "text-red-600" : "text-gray-700"}`}>Contact</a>
         </div>
 
         <button className="hero-gradient px-6 py-2.5 rounded-xl text-white font-bold shadow">
@@ -65,7 +66,7 @@ export default function Home() {
           <div className="absolute inset-0">
             <img
               src={WorldMapImage}
-              className="w-full h-full object-cover opacity-20"
+              className="w-full h-full object-cover opacity-50"
               style={{ transform: `translateY(${scrollY * 0.1}px)` }}
             />
             <div className="absolute inset-0 bg-white/80" />
@@ -81,9 +82,11 @@ export default function Home() {
             </p>
 
             <div className="flex gap-4">
+              <Link to="/map">
               <button className="hero-gradient px-8 py-4 rounded-xl text-white font-bold">
                 Explore Map
               </button>
+              </Link>
               <button className="px-8 py-4 border border-red-200 rounded-xl text-red-500">
                 Learn More
               </button>
@@ -153,6 +156,48 @@ export default function Home() {
             Start Contributing
           </button>
         </section>
+    <section id = "contact" className="w-full pb-24 bg-whie flex items-center justify-center">
+
+        <div className="w-1/3">
+          <h3 className="text-4xl font-bold text-black mb-6">Send a Message</h3>
+
+          <form className="space-y-4 ">
+            <div>
+              <label className="block text-sm font-medium text-gray-600">Name</label>
+              <input
+                type="text"
+                className="w-full mt-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="Your name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-600">Email</label>
+              <input
+                type="email"
+                className="w-full mt-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="Your email"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-600">Message</label>
+              <textarea
+                rows="4"
+                className="w-full mt-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="Your message"
+              ></textarea>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold hover:bg-red-600 transition"
+            >
+              Send Message
+            </button>
+          </form>
+        </div>
+    </section>
 
       </main>
 

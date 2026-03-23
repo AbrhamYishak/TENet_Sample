@@ -1,10 +1,30 @@
-import React, { useState } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
+import React, { useState, useEffect } from "react";
+import { MapContainer, TileLayer , Marker, Popup, Circle, Rectangle} from "react-leaflet";
 import { Link } from "react-router-dom";
-
+import Healthicon from "../assets/hospital.png"
+import L from "leaflet";
 function Map() {
   const [selected, setSelected] = useState("map");
-
+  const [internetData, setInternetData] = useState({ bbox: [0,0,0,0] });
+  const [healthData, setHealthData] = useState([]);
+  const [MapRadius, setMapRadius] = useState(10);
+  useEffect(() => {
+    fetch("http://localhost:5000/api/tenet/")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data)
+        setInternetData(data.internet);
+        setHealthData(data.health);
+      })
+      .catch((err) => console.error(err));
+  }, []);
+    const healthIcon = L.icon({
+    iconUrl: Healthicon,
+    iconSize: [25, 25],
+    iconAnchor: [12, 41],
+    popupAnchor: [0, -35]
+  });
+  console.log(internetData.bbox[1])
   return (
     <div className="h-screen bg-white text-balck font-['Manrope',sans-serif]">
             <style>{`
@@ -121,7 +141,17 @@ function Map() {
                 <option>Low</option>
               </select>
             </div>
-
+             <div className="flex flex-col gap-2">
+            <label className="text-black font-semibold"> Radius: {MapRadius} Km </label>
+            <input
+              type="range"
+              min="1"
+              max="100"
+              value={MapRadius}
+              onChange={(e) => setMapRadius(Number(e.target.value))}
+              className="w-64 slider"
+            />
+          </div>
             <button className="mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded transition">
               Apply Filters
             </button>
@@ -138,6 +168,34 @@ function Map() {
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution="&copy; OpenStreetMap contributors"
+              />
+              {/* {internetData.map((point, idx) => (
+                <Marker
+                  key={`internet-${idx}`}
+                  position={[point.lat, point.lon]}
+                  // Optional: use a different icon for internet
+                >
+                  <Popup >{point.provider}</Popup>
+                </Marker>
+              ))} */}
+
+              {healthData.map((point, idx) => (
+                 <Circle
+                    center={point}
+                    key = {idx}
+                    radius={MapRadius*1000}
+                    pathOptions={{ color: "red", fillOpacity: 0.2 }}
+                    >
+                    <Popup >{point.name}</Popup>
+                    </Circle>
+              ))}
+
+              <Rectangle
+                bounds={[
+            [internetData.bbox[0], internetData.bbox[1]], 
+            [internetData.bbox[2], internetData.bbox[3]] 
+          ]}
+                pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.1 }}
               />
             </MapContainer>
             <span className="absolute top-20 left-1/2 w-4 h-4 bg-red-600 rounded-full shadow-lg animate-pulse"></span>

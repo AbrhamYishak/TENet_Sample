@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from .views import get_tenet_data
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/tenet/', get_tenet_data, name='tenet-data'),
 ]
