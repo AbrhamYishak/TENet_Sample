@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { MapContainer, TileLayer , Marker, Popup, Circle, Rectangle} from "react-leaflet";
+import { MapContainer, TileLayer , Marker, Popup, Circle, Rectangle,GeoJSON} from "react-leaflet";
 import { Link } from "react-router-dom";
 import Healthicon from "../assets/hospital.png"
 import L from "leaflet";
 function Map() {
   const [selected, setSelected] = useState("map");
-  const [internetData, setInternetData] = useState({ bbox: [0,0,0,0] });
+  const [internetData, setInternetData] = useState(null);
   const [healthData, setHealthData] = useState([]);
   const [MapRadius, setMapRadius] = useState(10);
   useEffect(() => {
-    fetch("http://localhost:5000/api/tenet/")
+    fetch("http://172.20.92.131:1234/api/tenet/")
       .then((res) => res.json())
       .then((data) => {
         console.log(data)
@@ -24,7 +24,13 @@ function Map() {
     iconAnchor: [12, 41],
     popupAnchor: [0, -35]
   });
-  console.log(internetData.bbox[1])
+  const geojsonStyle = {
+        fillColor: "#2ecc71",
+        weight: 2,
+        opacity: 1,
+        color: 'blue',
+        fillOpacity: 0.7,
+    };
   return (
     <div className="h-screen bg-white text-balck font-['Manrope',sans-serif]">
             <style>{`
@@ -181,7 +187,7 @@ function Map() {
 
               {healthData.map((point, idx) => (
                  <Circle
-                    center={point}
+                    center={[point.lon,point.lat]}
                     key = {idx}
                     radius={MapRadius*1000}
                     pathOptions={{ color: "red", fillOpacity: 0.2 }}
@@ -190,13 +196,22 @@ function Map() {
                     </Circle>
               ))}
 
-              <Rectangle
+              {/* <Rectangle
                 bounds={[
-            [internetData.bbox[0], internetData.bbox[1]], 
-            [internetData.bbox[2], internetData.bbox[3]] 
-          ]}
-                pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.1 }}
-              />
+            [internetData[0], internetData[1]], 
+            [internetData[2], internetData[3]] 
+          ]} */}
+
+          {internetData && (
+                <GeoJSON 
+                    // key={JSON.stringify(internetData)}
+                    data={internetData} 
+                    style={geojsonStyle}
+                    onEachFeature={(feature, layer) => {
+                        layer.bindPopup(`Provider: ${feature.properties.brandname}`);
+                    }}
+                />
+            )}
             </MapContainer>
             <span className="absolute top-20 left-1/2 w-4 h-4 bg-red-600 rounded-full shadow-lg animate-pulse"></span>
           </div>

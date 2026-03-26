@@ -1,8 +1,12 @@
 from django.shortcuts import render
-from .models import MetaData
-# Create your views here.
+from .models import Metadata
+
 def updateMetadata(lastupdate):
-    MetaData.objects.update_or_create(pk =  1,LastUpdate = lastupdate)
-    MetaData.save()
+    Metadata.objects.update_or_create(id='1',lastupdated=lastupdate)
 def getLastupdate():
-    return MetaData.objects.get(id = 1).Lastupdated
+    try:
+        obj = Metadata.objects.get(id = '1')
+        return obj.lastupdated
+    except Exception as e:
+        return None
+# Create your views here.

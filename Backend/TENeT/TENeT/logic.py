@@ -3,13 +3,18 @@ import os
 import zipfile
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import Point, Polygon
+# from shapely.geometry import Point, Polygon
+from django.contrib.gis.utils import LayerMapping
+from django.contrib.gis.geos import Point
+# from django.contrib.gis.db.models.functions import Simplify
+from django.core.serializers import serialize
 from dotenv import load_dotenv
+from location.models import HealthCenterData,InternetData
 import h3
+import json
 from metadata.views import updateMetadata,getLastupdate
 load_dotenv()
 BASE_FOLDER = os.path.join(os.path.dirname(os.getcwd()),"alaska_all_data")
-print(BASE_FOLDER)
 url = "https://healthsites.io/api/v3/facilities/"
 FCCurl = "https://bdc.fcc.gov/api/public/map"
 headers = {
@@ -24,10 +29,11 @@ params = {
 }
 def load_data():
     try:
+        print("loading data")
         result = requests.get(url=f"{FCCurl}/listAsOfDates",headers=headers)
         dates = result.json()["data"]
         latest_date = max(d["as_of_date"] for d in dates if d["data_type"] == "availability")
-        if latest_date != getLastupdate():
+        if not getLastupdate() or latest_date != getLastupdate() :
             res = requests.get(  
                 f"{FCCurl}/downloads/listAvailabilityData/{latest_date}",
                 headers=headers)
@@ -35,49 +41,90 @@ def load_data():
             updateMetadata(latest_date)
             data = results.get("data")
             alaskaData = [item for item in data if item["state_name"] == "Alaska"]
-            for i in alaskaData:
-                fileID = i["file_id"]
-                DownloadUrl = f"{FCCurl}/downloads/downloadFile/availability/{fileID}/1"
-                res = requests.get(url=DownloadUrl,headers=headers)
-                with open("alaska.zip", "wb") as f:
-                    f.write(res.content)
-                with zipfile.ZipFile("alaska.zip", "r") as zip_ref:
-                    zip_ref.extractall("alaska_data")
+            oneData = alaskaData[0]
+            fileID = oneData["file_id"]
+            DownloadUrl = f"{FCCurl}/downloads/downloadFile/availability/{fileID}/1"
+            res = requests.get(url=DownloadUrl,headers=headers)
+            os.makedirs(BASE_FOLDER, exist_ok=True)
+            zip_path = os.path.join(BASE_FOLDER, "alaska.zip")
+            extract_path = os.path.join(BASE_FOLDER, f"alaska_data_{fileID}")
+            with open(zip_path, "wb") as f:
+                f.write(res.content)
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(extract_path)
         else:
             print("no update")
     except Exception as e:
         print(f"the error is {e}")
     
-def get_health_data():
+def updateHealthData():
     try:
         result = requests.get(url, params=params)
-        data = result.json()
-        healthData = [{"lat":item.get("centroid").get("coordinates")[1], "lon":item.get("centroid").get("coordinates")[0],"name":(item.get("attributes")).get("name")} for item in data]
-        return healthData
+        datas = result.json()
+        for data in datas:
+            HealthCenterData.objects.update_or_create(
+                name=(data.get("attributes")).get("name"),
+                location=Point(data.get("centroid").get("coordinates")[1], data.get("centroid").get("coordinates")[0]) 
+            )
+    except Exception as e:
+        print(f"the error is {e}")
+def updaateInternetData():
+    print("updating")
+    data_mapping = {
+        'frn': 'frn',
+        'providerid': 'providerid',
+        'brandname': 'brandname',
+        'technology': 'technology',
+        'mindown': 'mindown',
+        'minup': 'minup',
+        'minsignal': 'minsignal',
+        'environmnt': 'environmnt',
+        'h3_res9_id': 'h3_res9_id',
+        'mpoly': 'POLYGON', 
+    }
+    try:
+        for folder in os.listdir(BASE_FOLDER):
+            folder_path = os.path.join(BASE_FOLDER, folder)
+            if os.path.isdir(folder_path):
+                for file in os.listdir(folder_path):
+                    full_path = os.path.join(folder_path, file)
+                    if file.endswith(".shp"):
+                        lm = LayerMapping(InternetData, full_path, data_mapping,
+                            transform=False)
+                        lm.save(fid_range=(0, 100000), strict=False, verbose=False)
+    except Exception as e:
+        print(f"error is {e}")
+
+def get_health_data():
+    # updaateInternetData()
+    try:
+        HealthDatas = HealthCenterData.objects.all()
+        data = []
+        for HealthData in HealthDatas:
+            data.append({"name":HealthData.name,"lat":HealthData.location.y,"lon":HealthData.location.x})
+        return data
     except Exception as e:
         print(f"the error is {e}")
 
 
 def get_internet_data():
-    load_data()
-    all_geometries = []
-    count = 0
-    for folder in os.listdir(BASE_FOLDER):
-        folder_path = os.path.join(BASE_FOLDER, folder)
+    # updaateInternetData()
+    queryset = InternetData.objects.all()[:50000]
+    features = []
+    for item in queryset:
+        geom = json.loads(item.mpoly.json) if item.mpoly else None
+        feature = {
+            "type": "Feature",
+            "geometry": geom,
+            "properties": {
+                "brandname": item.brandname,
+                "technology": item.technology,
+            }
+        }
+        features.append(feature)
 
-        if os.path.isdir(folder_path) and count < 10:
-            for file in os.listdir(folder_path):
-                if file.endswith(".csv") and count < 10:
-                    file_path = os.path.join(folder_path, file)
-
-                    df = pd.read_csv(file_path)
-
-                    if "h3_res8_id" in df.columns and count < 10:
-                        for h in df["h3_res8_id"].dropna():
-                            coords = h3.cell_to_boundary(h)
-                            polygon = Polygon(coords)
-                            all_geometries.append(polygon)
-                            count+=1
-
-
-    return gpd.GeoDataFrame(geometry=all_geometries, crs="EPSG:4326").__geo_interface__
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
+    

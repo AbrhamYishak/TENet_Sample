@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-br9+7$!vlx=u8c607cazxrui_34c+k__-i09g$hj@kbuo7=1ba
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  
@@ -41,9 +41,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'corsheaders',
     'rest_framework',
-    'metadata'
+    'metadata',
+    'location',
 ]
 
 MIDDLEWARE = [
@@ -82,8 +84,12 @@ WSGI_APPLICATION = 'TENeT.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'tenet',
+        'USER': 'tenet_user',
+        'PASSWORD': '1234',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
