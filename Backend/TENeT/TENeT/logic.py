@@ -1,13 +1,14 @@
 import requests
 import os
 import zipfile
-import geopandas as gpd
-import pandas as pd
+# import geopandas as gpd
+# import pandas as pd
 # from shapely.geometry import Point, Polygon
 from django.contrib.gis.utils import LayerMapping
 from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
 # from django.contrib.gis.db.models.functions import Simplify
-from django.core.serializers import serialize
+# from django.core.serializers import serialize
 from dotenv import load_dotenv
 from location.models import HealthCenterData,InternetData
 import h3
@@ -29,7 +30,6 @@ params = {
 }
 def load_data():
     try:
-        print("loading data")
         result = requests.get(url=f"{FCCurl}/listAsOfDates",headers=headers)
         dates = result.json()["data"]
         latest_date = max(d["as_of_date"] for d in dates if d["data_type"] == "availability")
@@ -128,3 +128,23 @@ def get_internet_data():
         "features": features
     }
     
+def calculateScore(lat,lng,radius):
+    search_location = Point(float(lng), float(lat), srid=4326)
+    test_location = Point(float(lat), float(lng), srid=4326)
+    try:
+        result = {}
+        internetExists = False
+        obj = InternetData.objects.filter(mpoly__contains = test_location).first()
+        if obj != None:
+            internetExists = True
+        closestHealthCenter = HealthCenterData.objects.filter(name__isnull = False).annotate(distance=Distance('location', search_location, spheroid=True)).order_by('distance').first()
+        if closestHealthCenter:
+            result["closestHospital"] = closestHealthCenter.name
+            result["distanceToHospital"] = (closestHealthCenter.distance.m)/1000
+        if internetExists and result.get("distanceToHospital") > radius:
+            result["score"] = 100
+        else:
+            result["score"] = 0
+        return result
+    except Exception as e:
+        print(e)

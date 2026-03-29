@@ -1,3 +1,5 @@
 Backend/.venv
 Backend/.env
+Backend/TENeT/TENeT/.env
 Backend/alaska_all_data
+**/ .env

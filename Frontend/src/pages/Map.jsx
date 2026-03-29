@@ -8,8 +8,17 @@ function Map() {
   const [internetData, setInternetData] = useState(null);
   const [healthData, setHealthData] = useState([]);
   const [MapRadius, setMapRadius] = useState(10);
+  const [longtiude,setlongtiude] = useState(63.5795);
+  const [latitiude,setlatitiude] = useState(-162.3874);
+  const [score, setscore] = useState(null);
+  const radius = 60;
+  const stroke = 10;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const apiUrl = import.meta.env.VITE_BACKEND_ADDRESS;
+  console.log(apiUrl)
   useEffect(() => {
-    fetch("http://172.20.92.131:1234/api/tenet/")
+    fetch(`${apiUrl}/tenet/`)
       .then((res) => res.json())
       .then((data) => {
         console.log(data)
@@ -31,6 +40,30 @@ function Map() {
         color: 'blue',
         fillOpacity: 0.7,
     };
+  const handleCalculate = async () => {
+    console.log("test")
+    const payload = { 
+      longtiude, 
+      latitiude,
+      MapRadius
+    };
+
+    try {
+      const response = await fetch(`${apiUrl}/calculate/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      setscore(data.result)
+      console.log('Update successful:', data);
+    } catch (error) {
+      console.error('Update failed:', error);
+    }
+  };
   return (
     <div className="h-screen bg-white text-balck font-['Manrope',sans-serif]">
             <style>{`
@@ -61,7 +94,6 @@ function Map() {
           font-size: 180px;
         }
       `}</style>
-      {/* ── NAVBAR ── */}
       <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-20 bg-white border-b border-red-100 shadow">
         <div className="text-2xl font-bold text-red-600 font-['Space_Grotesk']">
            <Link to="/" onClick={() => setSelected("home")}>
@@ -119,33 +151,15 @@ function Map() {
           Login
         </button>
       </nav>
-
-      {/* ── MAP SECTION ── */}
       <div className="pt-24 px-8 md:px-24">
         <div className="flex flex-col justify-center items-center md:flex-row gap-8">
-          {/* ── Left Filter Panel ── */}
-          <div className="md:w-1/4 h-[50vh] bg-white/80 backdrop-blur-md p-8 rounded-xl flex flex-col gap-6 shadow-lg z-20">
-            <h3 className="text-2xl font-bold text-black mb-4">Filter Map</h3>
-
+          <div className="md:w-1/4 h-[50vh] bg-white/80 backdrop-blur-md p-8 rounded-xl self-start flex flex-col gap-6 shadow-lg z-20">
+            <h3 className="text-2xl font-bold text-black mb-3">Feasibility</h3>
             <div className="flex flex-col gap-2">
-              <label className="text-black font-semibold">Region</label>
-              <select className="p-2 rounded bg-white text-black">
-                <option>All Alaska</option>
-                <option>North</option>
-                <option>South</option>
-                <option>East</option>
-                <option>West</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-black font-semibold">Connectivity</label>
-              <select className="p-2 rounded bg-white text-black">
-                <option>All</option>
-                <option>High</option>
-                <option>Medium</option>
-                <option>Low</option>
-              </select>
+              <label className="text-black font-semibold"> Longtiude </label>
+              <input className="border-2 px-3 py-1" type = "text" placeholder = "longtiude" value = {longtiude} onChange={(e)=> setlongtiude(e.target.value)}></input>
+              <label className="text-black font-semibold"> Latitude </label>
+              <input className="border-2 px-3 py-1" type = "text" value = {latitiude} placeholder = "latitude" onChange={(e)=>setlatitiude(e.target.value)}></input>
             </div>
              <div className="flex flex-col gap-2">
             <label className="text-black font-semibold"> Radius: {MapRadius} Km </label>
@@ -157,13 +171,66 @@ function Map() {
               onChange={(e) => setMapRadius(Number(e.target.value))}
               className="w-64 slider"
             />
+            <button onClick={handleCalculate} className="bg-red-500 text-white p-3">
+                Calculate
+              </button>
           </div>
-            <button className="mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded transition">
-              Apply Filters
-            </button>
+             <div>
+              {score && (
+            <div className="flex flex-col w-full mt-2 items-start justify-center bg-white/80 backdrop-blur-md p-2 rounded-xl  shadow-lg">
+                    <h2 className="text-xl font-bold mb-1">
+                      Score
+                    </h2>
+                    <div className="flex justify-center">
+                      <svg height={radius * 2} width={radius * 2}>
+                        <circle
+                          stroke="#fee2e2"
+                          fill="transparent"
+                          strokeWidth={stroke}
+                          r={normalizedRadius}
+                          cx={radius}
+                          cy={radius}
+                        />
+                        <circle
+                          className="text-green-600"
+                          stroke="currentColor"
+                          fill="transparent"
+                          strokeWidth={stroke}
+                          strokeDasharray={`${circumference} ${circumference}`}
+                          strokeDashoffset={circumference - (score / 100) * circumference}
+                          strokeLinecap="round"
+                          style={{ transition: "stroke-dashoffset 0.5s" }}
+                          r={normalizedRadius}
+                          cx={radius}
+                          cy={radius}
+                        />
+                        <text
+                          x="50%"
+                          y="50%"
+                          dominantBaseline="middle"
+                          textAnchor="middle"
+                          className="fill-green-500 text-lg font-bold"
+                        >
+                          {score.score}
+                        </text>
+                        </svg>
+                    </div>
+
+                    <ul className="text-gray-700 mt-2 self-start">
+                      <li>
+                        <lable className="text-black font-semibold">Closest HealthCenter</lable>
+                        <p className="text-black font-semibold pl-2">{score.closestHospital}</p>
+                      </li>
+                      <li>
+                        <lable className="text-black font-semibold">Closest HealthCenter Distance</lable>
+                        <p className="text-black font-semibold pl-2">{Number(score.distanceToHospital.toFixed(2))} KM</p>
+                      </li>
+                    </ul>
+                  </div>
+            )}
+          </div>
           </div>
 
-          {/* ── Right Map ── */}
           <div className="md:w-3/4 relative">
             <MapContainer
               center={[64.2, -149.5]}
@@ -175,16 +242,12 @@ function Map() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution="&copy; OpenStreetMap contributors"
               />
-              {/* {internetData.map((point, idx) => (
                 <Marker
-                  key={`internet-${idx}`}
-                  position={[point.lat, point.lon]}
-                  // Optional: use a different icon for internet
+                  key={`search`}
+                  position={[longtiude, latitiude]}
                 >
-                  <Popup >{point.provider}</Popup>
+                  <Popup >Searched Location</Popup>
                 </Marker>
-              ))} */}
-
               {healthData.map((point, idx) => (
                  <Circle
                     center={[point.lon,point.lat]}
@@ -196,15 +259,9 @@ function Map() {
                     </Circle>
               ))}
 
-              {/* <Rectangle
-                bounds={[
-            [internetData[0], internetData[1]], 
-            [internetData[2], internetData[3]] 
-          ]} */}
 
           {internetData && (
                 <GeoJSON 
-                    // key={JSON.stringify(internetData)}
                     data={internetData} 
                     style={geojsonStyle}
                     onEachFeature={(feature, layer) => {
