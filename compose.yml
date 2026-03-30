@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: tenet_db_container
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d tenet_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      - POSTGRES_DB=tenet_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend: 
+    build: ./backend
+    command: >
+      sh -c "python Tenet/manage.py migrate && 
+             python Tenet/manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://admin:secret@db:5432/tenet_db
+      - DB_HOST=db
+      - DB_NAME=tenet_db
+      - DB_USER=admin
+      - DB_PASSWORD=secret
+      - DB_PORT=5432
+
+  frontend: 
+    build: 
+      context: ./frontend
+      args:
+        - VITE_BACKEND_ADDRESS=http://localhost:8000
+    ports:
+      - "4321:80"
+    environment:
+      - VITE_BACKEND_ADDRESS=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

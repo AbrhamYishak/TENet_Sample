@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { MapContainer, TileLayer , Marker, Popup, Circle, Rectangle,GeoJSON} from "react-leaflet";
+import { MapContainer, TileLayer , Marker, Popup, Circle,GeoJSON} from "react-leaflet";
 import { Link } from "react-router-dom";
 import Healthicon from "../assets/hospital.png"
 import L from "leaflet";
@@ -15,10 +15,10 @@ function Map() {
   const stroke = 10;
   const normalizedRadius = radius - stroke * 2;
   const circumference = normalizedRadius * 2 * Math.PI;
-  const apiUrl = import.meta.env.VITE_BACKEND_ADDRESS;
+  const apiUrl = import.meta.env.VITE_BACKEND_ADDRESS || "http://localhost:8000";
   console.log(apiUrl)
   useEffect(() => {
-    fetch(`${apiUrl}/tenet/`)
+    fetch(`${apiUrl}/api/tenet/`)
       .then((res) => res.json())
       .then((data) => {
         console.log(data)
@@ -49,7 +49,7 @@ function Map() {
     };
 
     try {
-      const response = await fetch(`${apiUrl}/calculate/`, {
+      const response = await fetch(`${apiUrl}/api/calculate/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,6 +64,15 @@ function Map() {
       console.error('Update failed:', error);
     }
   };
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  });
+  console.log(internetData)
+  console.log(healthData)
+  console.log(score)
   return (
     <div className="h-screen bg-white text-balck font-['Manrope',sans-serif]">
             <style>{`
@@ -223,7 +232,7 @@ function Map() {
                       </li>
                       <li>
                         <lable className="text-black font-semibold">Closest HealthCenter Distance</lable>
-                        <p className="text-black font-semibold pl-2">{Number(score.distanceToHospital.toFixed(2))} KM</p>
+                        <p className="text-black font-semibold pl-2">{score.distanceToHospital? Number(score.distanceToHospital.toFixed(2)): "0.00"} KM</p>
                       </li>
                     </ul>
                   </div>
