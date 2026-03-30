@@ -8,10 +8,8 @@ from django.contrib.gis.utils import LayerMapping
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 # from django.contrib.gis.db.models.functions import Simplify
-# from django.core.serializers import serialize
 from dotenv import load_dotenv
 from location.models import HealthCenterData,InternetData
-import h3
 import json
 from metadata.views import updateMetadata,getLastupdate
 load_dotenv()
@@ -131,20 +129,26 @@ def get_internet_data():
 def calculateScore(lat,lng,radius):
     search_location = Point(float(lng), float(lat), srid=4326)
     test_location = Point(float(lat), float(lng), srid=4326)
+    targetDown = 25
+    targetUp = 5
+    weight = [0.35,0.35,0.3]
     try:
         result = {}
-        internetExists = False
         obj = InternetData.objects.filter(mpoly__contains = test_location).first()
+        score = 0
         if obj != None:
-            internetExists = True
+            score+= weight[0]*min(1,obj.minup/targetUp)
+            print(obj.mindown,obj.minup)
+            score+= weight[1]*min(1,obj.mindown/targetDown)
+            print(score)
         closestHealthCenter = HealthCenterData.objects.filter(name__isnull = False).annotate(distance=Distance('location', search_location, spheroid=True)).order_by('distance').first()
         if closestHealthCenter:
             result["closestHospital"] = closestHealthCenter.name
             result["distanceToHospital"] = (closestHealthCenter.distance.m)/1000
-        if internetExists and result.get("distanceToHospital") > radius:
-            result["score"] = 100
-        else:
-            result["score"] = 0
+            score+=weight[2]*min(1,((closestHealthCenter.distance.m)/1000)/radius)
+        score *= 100
+        result["score"] = round(score,2)
+        print(score)
         return result
     except Exception as e:
         print(e)
