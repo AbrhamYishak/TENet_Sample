@@ -3,6 +3,7 @@ import { MapContainer, TileLayer , Marker, Popup, Circle,GeoJSON} from "react-le
 import { Link } from "react-router-dom";
 import Healthicon from "../assets/hospital.png"
 import L from "leaflet";
+import Scoredisplay from "../components/Scoredisplay";
 function Map() {
   const [selected, setSelected] = useState("map");
   const [internetData, setInternetData] = useState(null);
@@ -15,15 +16,15 @@ function Map() {
   const stroke = 10;
   const normalizedRadius = radius - stroke * 2;
   const circumference = normalizedRadius * 2 * Math.PI;
+  const [geoJsonKey, setGeoJsonKey] = useState(0);
   const apiUrl = import.meta.env.VITE_BACKEND_ADDRESS || "http://localhost:8000";
-  console.log(apiUrl)
   useEffect(() => {
-    fetch(`${apiUrl}/api/tenet/`)
-      .then((res) => res.json())
-      .then((data) => {
+    console.log(`${apiUrl}/api/map`)
+        fetch(`${apiUrl}/api/map`).then((res) => res.json()).then((data) => {
         console.log(data)
         setInternetData(data.internet);
         setHealthData(data.health);
+        setGeoJsonKey(Date.now());
       })
       .catch((err) => console.error(err));
   }, []);
@@ -49,7 +50,7 @@ function Map() {
     };
 
     try {
-      const response = await fetch(`${apiUrl}/api/calculate/`, {
+      const response = await fetch(`${apiUrl}/api/calculate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -184,60 +185,6 @@ function Map() {
                 Calculate
               </button>
           </div>
-             <div>
-              {score && (
-            <div className="flex flex-col w-full mt-2 items-start justify-center bg-white/80 backdrop-blur-md p-2 rounded-xl  shadow-lg">
-                    <h2 className="text-xl font-bold mb-1">
-                      Score
-                    </h2>
-                    <div className="flex justify-center">
-                      <svg height={radius * 2} width={radius * 2}>
-                        <circle
-                          stroke="#fee2e2"
-                          fill="transparent"
-                          strokeWidth={stroke}
-                          r={normalizedRadius}
-                          cx={radius}
-                          cy={radius}
-                        />
-                        <circle
-                          className="text-green-600"
-                          stroke="currentColor"
-                          fill="transparent"
-                          strokeWidth={stroke}
-                          strokeDasharray={`${circumference} ${circumference}`}
-                          strokeDashoffset={circumference - (score / 100) * circumference}
-                          strokeLinecap="round"
-                          style={{ transition: "stroke-dashoffset 0.5s" }}
-                          r={normalizedRadius}
-                          cx={radius}
-                          cy={radius}
-                        />
-                        <text
-                          x="50%"
-                          y="50%"
-                          dominantBaseline="middle"
-                          textAnchor="middle"
-                          className="fill-green-500 text-lg font-bold"
-                        >
-                          {score.score}
-                        </text>
-                        </svg>
-                    </div>
-
-                    <ul className="text-gray-700 mt-2 self-start">
-                      <li>
-                        <lable className="text-black font-semibold">Closest HealthCenter</lable>
-                        <p className="text-black font-semibold pl-2">{score.closestHospital}</p>
-                      </li>
-                      <li>
-                        <lable className="text-black font-semibold">Closest HealthCenter Distance</lable>
-                        <p className="text-black font-semibold pl-2">{score.distanceToHospital? Number(score.distanceToHospital.toFixed(2)): "0.00"} KM</p>
-                      </li>
-                    </ul>
-                  </div>
-            )}
-          </div>
           </div>
 
           <div className="md:w-3/4 relative">
@@ -257,28 +204,46 @@ function Map() {
                 >
                   <Popup >Searched Location</Popup>
                 </Marker>
-              {healthData.map((point, idx) => (
-                 <Circle
-                    center={[point.lon,point.lat]}
-                    key = {idx}
-                    radius={MapRadius*1000}
+              {healthData.map((loc, idx) => {
+                const location = loc.location
+
+                if (!location) return null
+               const [lng, lat] = location.coordinates
+                return (
+                  <Circle
+                    center={[lng, lat]} 
+                    key={idx}
+                    radius={MapRadius * 1000}
                     pathOptions={{ color: "red", fillOpacity: 0.2 }}
-                    >
-                    <Popup >{point.name}</Popup>
-                    </Circle>
-              ))}
-
-
-          {internetData && (
-                <GeoJSON 
-                    data={internetData} 
-                    style={geojsonStyle}
-                    onEachFeature={(feature, layer) => {
-                        layer.bindPopup(`Provider: ${feature.properties.brandname}`);
-                    }}
-                />
+                  >
+                    <Popup>{loc.name}</Popup>
+                  </Circle>
+                )
+              })}
+            {internetData && internetData.features && (
+              <GeoJSON
+                key={geoJsonKey}
+                data={internetData} 
+                style={{
+                  fillColor: "#2ecc71",
+                  weight: 2,
+                  opacity: 1,
+                  color: 'blue',
+                  fillOpacity: 0.7,
+                }}
+                onEachFeature={(feature, layer) => {
+                  layer.bindPopup(
+                    `<strong>Provider:</strong> ${feature.properties.brandname || 'N/A'}<br/>
+                    <strong>Tech:</strong> ${feature.properties.technology}<br/>
+                    <strong>Download:</strong> ${feature.properties.mindown} Mbps`
+                  );
+                }}
+              />
             )}
             </MapContainer>
+              <div>
+              {score && <Scoredisplay hospital={score.closestHospital} score={score.score} distance={score.distanceToHospital}/>}
+          </div>
             <span className="absolute top-20 left-1/2 w-4 h-4 bg-red-600 rounded-full shadow-lg animate-pulse"></span>
           </div>
         </div>

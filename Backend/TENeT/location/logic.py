@@ -5,7 +5,7 @@ from django.contrib.gis.utils import LayerMapping
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 from dotenv import load_dotenv
-from location.models import HealthCenterData,InternetData
+from .models import HealthCenterData,InternetData
 import json
 from metadata.views import updateMetadata,getLastupdate
 load_dotenv()
@@ -91,38 +91,6 @@ def updaateInternetData():
             print("no update")
     except Exception as e:
         print(f"error is {e}")
-
-def get_health_data():
-    updateHealthData()
-    try:
-        HealthDatas = HealthCenterData.objects.all()
-        data = []
-        for HealthData in HealthDatas:
-            data.append({"name":HealthData.name,"lat":HealthData.location.y,"lon":HealthData.location.x})
-        return data
-    except Exception as e:
-        print(f"the error is {e}")
-
-def get_internet_data():
-    updaateInternetData()
-    queryset = InternetData.objects.all()[:50000]
-    features = []
-    for item in queryset:
-        geom = json.loads(item.mpoly.json) if item.mpoly else None
-        feature = {
-            "type": "Feature",
-            "geometry": geom,
-            "properties": {
-                "brandname": item.brandname,
-                "technology": item.technology,
-            }
-        }
-        features.append(feature)
-
-    return {
-        "type": "FeatureCollection",
-        "features": features
-    }
     
 def calculateScore(lat,lng,radius):
     search_location = Point(float(lng), float(lat), srid=4326)
@@ -136,9 +104,7 @@ def calculateScore(lat,lng,radius):
         score = 0
         if obj != None:
             score+= weight[0]*min(1,obj.minup/targetUp)
-            print(obj.mindown,obj.minup)
             score+= weight[1]*min(1,obj.mindown/targetDown)
-            print(score)
         closestHealthCenter = HealthCenterData.objects.filter(name__isnull = False).annotate(distance=Distance('location', search_location, spheroid=True)).order_by('distance').first()
         if closestHealthCenter:
             result["closestHospital"] = closestHealthCenter.name
@@ -146,7 +112,6 @@ def calculateScore(lat,lng,radius):
             score+=weight[2]*min(1,((closestHealthCenter.distance.m)/1000)/radius)
         score *= 100
         result["score"] = round(score,2)
-        print(score)
         return result
     except Exception as e:
         print(e)
